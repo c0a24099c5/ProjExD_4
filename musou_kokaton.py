@@ -241,6 +241,22 @@ class Score:
         self.image = self.font.render(f"Score: {self.value}", 0, self.color)
         screen.blit(self.image, self.rect)
 
+class Gravity(pg.sprite.Sprite):
+    def __init__(self, life=400):
+        super().__init__()
+        self.life = life
+
+        # 画面全体を覆う半透明の黒矩形
+        self.image = pg.Surface((WIDTH, HEIGHT))
+        self.image.fill((0, 0, 0))
+        self.image.set_alpha(120)  # 半透明
+
+        self.rect = self.image.get_rect()
+
+    def update(self):
+        self.life -= 1
+        if self.life < 0:
+            self.kill()
 class Life:
     """
     追加機能１：残機数を表示する(3)
@@ -302,6 +318,8 @@ def main():
     beams = pg.sprite.Group()
     exps = pg.sprite.Group()
     emys = pg.sprite.Group()
+    grvs = pg.sprite.Group()
+    
     shield = pg.sprite.Group()
 
     tmr = 0
@@ -326,6 +344,28 @@ def main():
             if emy.state == "stop" and tmr%emy.interval == 0:
                 # 敵機が停止状態に入ったら，intervalに応じて爆弾投下
                 bombs.add(Bomb(emy, bird))
+
+        
+        if event.type == pg.KEYDOWN and event.key == pg.K_RSHIFT: #右シフトを推した時
+            if score.value > 200 and len(grvs) == 0:   #200ポイントあるなら
+                grvs.add(Gravity(life=400))     #Gravityの実行
+                score.value -= 200       #スコア-200
+        
+        if len(grvs) > 0:
+            for gravity in grvs:
+                # 爆弾を消す
+                hit_bombs = pg.sprite.spritecollide(gravity, bombs, True)
+                for bomb in hit_bombs:
+                    exps.add(Explosion(bomb, 50))
+                    score.value += 1
+
+                # 敵機の破壊
+                hit_emys = pg.sprite.spritecollide(gravity, emys, True)
+                for emy in hit_emys:
+                    exps.add(Explosion(emy, 100))
+                    score.value += 10
+
+
 
         for emy in pg.sprite.groupcollide(emys, beams, True, True).keys():  # ビームと衝突した敵機リスト
             exps.add(Explosion(emy, 100))  # 爆発エフェクト
@@ -354,6 +394,7 @@ def main():
             pg.display.update()
             time.sleep(2)
             return
+        
 
         for bomb in pg.sprite.groupcollide(bombs, shield, True, False):  # 盾と衝突した爆弾リスト
             exps.add(Explosion(bomb, 50))  # 壁に当たったら爆発する
@@ -368,7 +409,11 @@ def main():
         bombs.draw(screen)
         exps.update()
         exps.draw(screen)
+        grvs.update()
+        grvs.draw(screen)
         score.update(screen)
+        pg.display.update()  
+
         life.update(screen)
         shield.update()
         shield.draw(screen)
